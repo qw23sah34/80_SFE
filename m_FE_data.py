@@ -82,18 +82,17 @@ class FEData(object):
         """The stiffness matrix for each element is calculated here.
         So far the integration of the stiffness matrix is hardcoded"""
         #
-        def get_gauss_integral_B(i,j,a,b,degree):
-            """Calculates the integral. 
-            Borders: from a to b.
-            Integral: B_i, B_j where B are the B-functions of the degree"""
-            def get_B(ix, x):
-                if (ix == 0):
-                    B = -3.0/L + 4.0*x/pow(L,2)
-                elif (ix == 1):
-                    B =  4.0/L - 8.0*x/pow(L,2)
-                elif (ix == 2):
-                    B = -1.0/L + 4.0*x/pow(L,2)
-                return B
+        def get_B(ix, x):
+            if (ix == 0):
+                B = -3.0/L + 4.0*x/pow(L,2)
+            elif (ix == 1):
+                B =  4.0/L - 8.0*x/pow(L,2)
+            elif (ix == 2):
+                B = -1.0/L + 4.0*x/pow(L,2)
+            return B
+            #
+        def get_Gauss_values(degree):
+            """Return the values for Gauss points"""
             
             # Define X_i and alpha_i (from Table)
             if (degree == 1):
@@ -102,14 +101,7 @@ class FEData(object):
             elif (degree == 2):
                 X_i = np.array([-np.sqrt(1.0/3.0),np.sqrt(1.0/3.0)], float)
                 alpha_i = np.array([1.0,1.0], float)
-            #
-            GI = 0.0
-            for iD in range(degree):
-                x = (b-a)/2.0*X_i[iD] + (a+b)/2.0
-                GI = GI + get_B(i,x)*get_B(j,x)*alpha_i[iD]
-            #
-            GI = GI*(b-a)/2.0
-            return GI
+            return X_i, alpha_i
             #
         E = self.E
         for iElement in range(self.nElements):
@@ -132,7 +124,6 @@ class FEData(object):
             #                         for numerical Gauss-Legendre-Integration 
             #
             L = self.e[iElement].length
-            A = self.e[iElement].A
             degree = self.e[iElement].degree
             if (degree == 1):
                 #
@@ -142,9 +133,22 @@ class FEData(object):
                 self.e[iElement].K = np.array([[ C, -C], [-C,  C]], float)
             elif (degree == 2):
                 self.e[iElement].K = np.zeros((nPoints, nPoints), float)
+                #
+                # Calculate Gauss points and weights
+                #
+                X_i, alpha_i = get_Gauss_values(degree)
+                #
+                b = L
+                a = 0.0
                 for i in range(nPoints):
                     for j in range(nPoints):
-                        self.e[iElement].K[i,j] = E*A*get_gauss_integral_B(i,j,0.0,L,degree)
+                        GI = 0.0
+                        for iD in range(degree):
+                            x = (b-a)/2.0*X_i[iD] + (a+b)/2.0
+                            GI = GI + get_B(i,x)*get_B(j,x)*self.e[iElement].get_A(x)*alpha_i[iD]
+                        #
+                        GI = GI*(b-a)/2.0
+                        self.e[iElement].K[i,j] = E*GI
                         #
                 #
             #
@@ -162,6 +166,10 @@ class FE_Element(object):
         self.length = 0.0
         self.K = []
         self.p = []
+    def get_A(self,x):
+        get_A = self.p.A[0] + (self.p.A[-1] - self.p.A[0])*\
+            x/(self.p.x[-1] - self.p.x[0])
+        return get_A
         
 class FE_Point(object):
     def __init__(self):

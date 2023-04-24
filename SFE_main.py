@@ -28,7 +28,7 @@ BeamType = 1
 #                             (-999 means clamped boudary condition)
 #
 initData = c_init_data.initData()
-initData.read('d:\WorkDir\80_SFE\control.ste')
+initData.read('.\control.ste')
 #
 # From FE-points data calculate element data
 #
